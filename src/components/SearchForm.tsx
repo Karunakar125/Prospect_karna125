@@ -23,6 +23,12 @@ export const SearchForm: React.FC<SearchFormProps> = ({
   const [customKey, setCustomKey] = useState<string>(defaultGeoapifyKey);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (defaultGeoapifyKey) {
+      setCustomKey(defaultGeoapifyKey);
+    }
+  }, [defaultGeoapifyKey]);
+
   // City Logic Requirement: When a city is selected, the state updates automatically and becomes readonly/disabled
   useEffect(() => {
     if (city && US_CITIES_MAP[city]) {

@@ -12,11 +12,32 @@ app.use(express.json());
 
 const PORT = 3000;
 
+// Helper to resolve Geoapify API Key from request customKey or environment variables (supporting both GEOAPIFY_API_KEY and VITE_GEOAPIFY_API_KEY)
+const getGeoapifyKey = (customKey?: string) => {
+  if (customKey && customKey.trim()) return customKey.trim();
+  return (
+    process.env.GEOAPIFY_API_KEY ||
+    process.env.VITE_GEOAPIFY_API_KEY ||
+    process.env.GEOAPIFY_KEY ||
+    ''
+  );
+};
+
+// Helper to resolve Gemini API Key from environment variables (supporting both GEMINI_API_KEY and VITE_GEMINI_API_KEY)
+const getGeminiKey = () => {
+  return (
+    process.env.GEMINI_API_KEY ||
+    process.env.VITE_GEMINI_API_KEY ||
+    process.env.GEMINI_KEY ||
+    ''
+  );
+};
+
 // Initialize Google GenAI
 const getAIClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = getGeminiKey();
   if (!apiKey) {
-    console.warn('GEMINI_API_KEY is not set in environment variables');
+    console.warn('GEMINI_API_KEY / VITE_GEMINI_API_KEY is not set in environment variables');
   }
   return new GoogleGenAI({
     apiKey: apiKey || '',
@@ -28,25 +49,27 @@ const getAIClient = () => {
   });
 };
 
+const apiRouter = express.Router();
+
 // ----------------------------------------------------
 // API Route 1: Check System Status & Keys
 // ----------------------------------------------------
-app.get('/api/health', (_req: Request, res: Response) => {
+apiRouter.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
-    hasGeminiKey: !!process.env.GEMINI_API_KEY,
-    hasGeoapifyKey: !!process.env.GEOAPIFY_API_KEY,
+    hasGeminiKey: !!getGeminiKey(),
+    hasGeoapifyKey: !!getGeoapifyKey(),
   });
 });
 
 // ----------------------------------------------------
 // API Route 2: Scrape Leads (Geoapify + Fallback)
 // ----------------------------------------------------
-app.post('/api/scrape-leads', async (req: Request, res: Response) => {
+apiRouter.post('/scrape-leads', async (req: Request, res: Response) => {
   try {
     const { niche, city, state, geoCategory, customKey, sampleMode, maxResults = 8 } = req.body;
 
-    const apiKey = customKey || process.env.GEOAPIFY_API_KEY;
+    const apiKey = getGeoapifyKey(customKey);
 
     // If sampleMode is requested or no key is present, yield realistic synthetic leads
     if (sampleMode || !apiKey) {
@@ -454,7 +477,7 @@ function generateFallbackLeads(niche: string, city: string, state: string, count
 // ----------------------------------------------------
 // API Route 3: Contact Extraction Logic
 // ----------------------------------------------------
-app.post('/api/extract-contact', async (req: Request, res: Response) => {
+apiRouter.post('/extract-contact', async (req: Request, res: Response) => {
   try {
     const { websiteUrl } = req.body;
     if (!websiteUrl) {
@@ -565,7 +588,7 @@ app.post('/api/extract-contact', async (req: Request, res: Response) => {
 // ----------------------------------------------------
 // API Route 4: Gemini Vision Audit & Cold Email Draft
 // ----------------------------------------------------
-app.post('/api/audit-and-draft', async (req: Request, res: Response) => {
+apiRouter.post('/audit-and-draft', async (req: Request, res: Response) => {
   try {
     const { leadName, websiteUrl, niche, city, state, foundEmail } = req.body;
 
@@ -757,6 +780,10 @@ function generateFallbackAuditAndDraft(
     },
   };
 }
+
+// Mount API router for both direct /api calls and Netlify Serverless Function paths
+app.use('/api', apiRouter);
+app.use('/.netlify/functions/api', apiRouter);
 
 // ----------------------------------------------------
 // Vite Dev Server or Production Static Serving Setup

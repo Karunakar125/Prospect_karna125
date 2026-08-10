@@ -43,11 +43,12 @@ export default function App() {
     fetch('/api/health')
       .then((res) => res.json())
       .then((data) => {
-        setHasGeoapifyKey(data.hasGeoapifyKey);
-        setHasGeminiKey(data.hasGeminiKey);
+        setHasGeoapifyKey(data.hasGeoapifyKey || !!(import.meta.env.VITE_GEOAPIFY_API_KEY as string));
+        setHasGeminiKey(data.hasGeminiKey || !!(import.meta.env.VITE_GEMINI_API_KEY as string));
       })
       .catch(() => {
-        setHasGeoapifyKey(false);
+        setHasGeoapifyKey(!!(import.meta.env.VITE_GEOAPIFY_API_KEY as string));
+        setHasGeminiKey(!!(import.meta.env.VITE_GEMINI_API_KEY as string));
       });
   }, []);
 
@@ -336,6 +337,7 @@ export default function App() {
       let initialLeads: Lead[] = [];
 
       try {
+        const customKeyToSend = form.customKey || (import.meta.env.VITE_GEOAPIFY_API_KEY as string) || undefined;
         // Step 1: Fetch Scraped Leads
         const scrapeRes = await fetch('/api/scrape-leads', {
           method: 'POST',
@@ -345,7 +347,7 @@ export default function App() {
             city: form.city,
             state: form.state,
             geoCategory: form.geoCategory,
-            customKey: form.customKey,
+            customKey: customKeyToSend,
             sampleMode: form.sampleMode,
             maxResults: form.maxResults,
           }),
@@ -593,7 +595,7 @@ ${l.emailDraft?.body || ''}
           <SearchForm
             onSearch={handleSearch}
             isLoading={isProcessing}
-            defaultGeoapifyKey={process.env.GEOAPIFY_API_KEY}
+            defaultGeoapifyKey={(import.meta.env.VITE_GEOAPIFY_API_KEY as string) || ''}
           />
         </section>
 
