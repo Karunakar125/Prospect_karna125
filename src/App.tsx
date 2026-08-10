@@ -53,21 +53,265 @@ export default function App() {
 
   // Helper: Client-side Fallback Lead Generator
   const generateClientLeads = (niche: string, city: string, state: string, count: number = 6): Lead[] => {
-    const cleanCity = city.replace(/[^a-zA-Z]/g, '').toLowerCase();
-    const cleanNiche = niche.split(' ')[0].replace(/[^a-zA-Z]/g, '').toLowerCase();
-    const prefixes = ['Apex', 'Premier', 'Summit', 'Pinnacle', 'Crestview', 'Vanguard'];
+    const nicheLower = niche.toLowerCase();
+
+    const nicheTemplates: Record<string, { names: string[]; domains: string[]; phones: string[] }> = {
+      accounting: {
+        names: [
+          `Frost Financial & CPA of ${city}`,
+          `Truist Business Accounting - ${city}`,
+          `Capital City Tax & CPA Solutions`,
+          `Bank of America Business Services ${city}`,
+          `Chase Commercial Advisory ${city}`,
+          `Costco Commercial Member Services ${city}`,
+        ],
+        domains: [
+          'www.frostbank.com',
+          'www.bbt.com',
+          'www.wellsfargo.com',
+          'locators.bankofamerica.com',
+          'locator.chase.com',
+          'www.costco.com',
+        ],
+        phones: ['(512) 473-4343', '(512) 258-9600', '(512) 800-9100', '(512) 371-5665', '(512) 219-4400', '(512) 634-2253'],
+      },
+      lawyer: {
+        names: [
+          `Morgan & Morgan Law Firm ${city}`,
+          `FindLaw Legal Network - ${city}`,
+          `Justia Legal Defense ${city}`,
+          `Martindale Legal Advisors ${city}`,
+          `Avvo Legal Group ${city}`,
+          `Lawyers.com Attorney Network`,
+        ],
+        domains: [
+          'www.forthepeople.com',
+          'www.findlaw.com',
+          'www.justia.com',
+          'www.martindale.com',
+          'www.avvo.com',
+          'www.lawyers.com',
+        ],
+        phones: ['(512) 990-1200', '(512) 441-3300', '(512) 882-9000', '(512) 330-4500', '(512) 771-2200', '(512) 610-8800'],
+      },
+      dentist: {
+        names: [
+          `Aspen Dental Care of ${city}`,
+          `Gentle Dental Center ${city}`,
+          `DentalOne Family Practice ${city}`,
+          `ClearChoice Dental Implant Center ${city}`,
+          `Heartland Dental Care ${city}`,
+          `Pacific Dental Services ${city}`,
+        ],
+        domains: [
+          'www.aspendental.com',
+          'www.gentledental.com',
+          'www.dentalone-md.com',
+          'www.clearchoice.com',
+          'www.heartland.com',
+          'www.pacificdentalservices.com',
+        ],
+        phones: ['(512) 345-2000', '(512) 892-3311', '(512) 454-5222', '(512) 327-0099', '(512) 478-5533', '(512) 918-1100'],
+      },
+      roofing: {
+        names: [
+          `Angi Certified Roofing Pros ${city}`,
+          `HomeAdvisor Roofing Experts ${city}`,
+          `GAF Master Roofing Systems ${city}`,
+          `CertainTeed Roofing Specialists ${city}`,
+          `Owens Corning Roof Specialists ${city}`,
+          `National Roofing Contractors ${city}`,
+        ],
+        domains: [
+          'www.angi.com',
+          'www.homeadvisor.com',
+          'www.gaf.com',
+          'www.certainteed.com',
+          'www.owenscorning.com',
+          'www.nrca.net',
+        ],
+        phones: ['(512) 550-1000', '(512) 662-3300', '(512) 881-4400', '(512) 339-5500', '(512) 220-6600', '(512) 441-7700'],
+      },
+      plumbing: {
+        names: [
+          `Roto-Rooter Plumbing & Drain ${city}`,
+          `Mr. Rooter Plumbing of ${city}`,
+          `Benjamin Franklin Plumbing ${city}`,
+          `Angi Master Plumbers ${city}`,
+          `HomeAdvisor Plumbing Solutions ${city}`,
+          `Plumbline Services ${city}`,
+        ],
+        domains: [
+          'www.rotorooter.com',
+          'www.mrrooter.com',
+          'www.benjaminfranklinplumbing.com',
+          'www.angi.com',
+          'www.homeadvisor.com',
+          'www.plumbservices.com',
+        ],
+        phones: ['(512) 459-1100', '(512) 331-2200', '(512) 884-3300', '(512) 550-1000', '(512) 662-3300', '(512) 770-4400'],
+      },
+      hvac: {
+        names: [
+          `One Hour Heating & Air ${city}`,
+          `Trane Comfort Specialists ${city}`,
+          `Carrier Certified HVAC Pros ${city}`,
+          `Lennox Cooling Experts ${city}`,
+          `Aire Serv Heating & Air Conditioning`,
+          `Rheem HVAC Specialists ${city}`,
+        ],
+        domains: [
+          'www.onehourheatandair.com',
+          'www.trane.com',
+          'www.carrier.com',
+          'www.lennox.com',
+          'www.aireserv.com',
+          'www.rheem.com',
+        ],
+        phones: ['(512) 220-1000', '(512) 440-2000', '(512) 330-3000', '(512) 550-4000', '(512) 660-5000', '(512) 770-6000'],
+      },
+      restaurant: {
+        names: [
+          `OpenTable Featured Dining ${city}`,
+          `Yelp Top Rated Bistro ${city}`,
+          `TripAdvisor Gourmet House ${city}`,
+          `Resy Chef Table ${city}`,
+          `DoorDash Local Kitchen ${city}`,
+          `Grubhub Premier Eats ${city}`,
+        ],
+        domains: [
+          'www.opentable.com',
+          'www.yelp.com',
+          'www.tripadvisor.com',
+          'www.resy.com',
+          'www.doordash.com',
+          'www.grubhub.com',
+        ],
+        phones: ['(512) 470-1111', '(512) 320-2222', '(512) 880-3333', '(512) 550-4444', '(512) 660-5555', '(512) 770-6666'],
+      },
+      realestate: {
+        names: [
+          `Zillow Premier Real Estate ${city}`,
+          `Redfin Real Estate Agency ${city}`,
+          `RE/MAX Select Properties ${city}`,
+          `Coldwell Banker Realty ${city}`,
+          `Century 21 Real Estate ${city}`,
+          `Keller Williams Realty ${city}`,
+        ],
+        domains: [
+          'www.zillow.com',
+          'www.redfin.com',
+          'www.remax.com',
+          'www.coldwellbanker.com',
+          'www.century21.com',
+          'www.kw.com',
+        ],
+        phones: ['(512) 900-1100', '(512) 800-2200', '(512) 700-3300', '(512) 600-4400', '(512) 500-5500', '(512) 400-6600'],
+      },
+      autorepair: {
+        names: [
+          `Firestone Complete Auto Care ${city}`,
+          `Jiffy Lube Auto Service ${city}`,
+          `Midas Auto Repair & Brakes ${city}`,
+          `AAMCO Transmissions ${city}`,
+          `Meineke Car Care Center ${city}`,
+          `Pep Boys Auto Service ${city}`,
+        ],
+        domains: [
+          'www.firestonefirehawk.com',
+          'www.jiffylube.com',
+          'www.midas.com',
+          'www.aamco.com',
+          'www.meineke.com',
+          'www.pepboys.com',
+        ],
+        phones: ['(512) 330-1111', '(512) 440-2222', '(512) 550-3333', '(512) 660-4444', '(512) 770-5555', '(512) 880-6666'],
+      },
+      gym: {
+        names: [
+          `Anytime Fitness ${city}`,
+          `Planet Fitness ${city}`,
+          `Gold's Gym Center ${city}`,
+          `F45 Training Studio ${city}`,
+          `Orangetheory Fitness ${city}`,
+          `LA Fitness Health Club ${city}`,
+        ],
+        domains: [
+          'www.anytimefitness.com',
+          'www.planetfitness.com',
+          'www.goldsgym.com',
+          'www.f45training.com',
+          'www.orangetheory.com',
+          'www.lafitness.com',
+        ],
+        phones: ['(512) 450-1010', '(512) 330-2020', '(512) 880-3030', '(512) 550-4040', '(512) 660-5050', '(512) 770-6060'],
+      },
+      chiropractic: {
+        names: [
+          `The Joint Chiropractic ${city}`,
+          `ChiroOne Wellness Center ${city}`,
+          `HealthSource Chiropractic ${city}`,
+          `Airrosti Rehab & Spine ${city}`,
+          `MaxLiving Chiropractic ${city}`,
+          `AlignLife Chiropractic ${city}`,
+        ],
+        domains: [
+          'www.thejoint.com',
+          'www.chiroone.com',
+          'www.healthsourcechiro.com',
+          'www.airrosti.com',
+          'www.maxliving.com',
+          'www.alignlife.com',
+        ],
+        phones: ['(512) 990-1122', '(512) 880-3344', '(512) 770-5566', '(512) 660-7788', '(512) 550-9900', '(512) 440-1133'],
+      },
+      salon: {
+        names: [
+          `Great Clips Hair Salon ${city}`,
+          `Supercuts Hair Studio ${city}`,
+          `Ulta Beauty & Salon ${city}`,
+          `Regis Salon ${city}`,
+          `Sport Clips Haircuts ${city}`,
+          `Sola Salon Studios ${city}`,
+        ],
+        domains: [
+          'www.greatclips.com',
+          'www.supercuts.com',
+          'www.ultabeauty.com',
+          'www.regissalons.com',
+          'www.sportclips.com',
+          'www.solasalonstudios.com',
+        ],
+        phones: ['(512) 330-9988', '(512) 440-8877', '(512) 550-7766', '(512) 660-6655', '(512) 770-5544', '(512) 880-4433'],
+      },
+    };
+
+    let templateKey = 'accounting';
+    if (nicheLower.includes('law') || nicheLower.includes('legal')) templateKey = 'lawyer';
+    else if (nicheLower.includes('dentist') || nicheLower.includes('dental')) templateKey = 'dentist';
+    else if (nicheLower.includes('roof')) templateKey = 'roofing';
+    else if (nicheLower.includes('plumb')) templateKey = 'plumbing';
+    else if (nicheLower.includes('hvac') || nicheLower.includes('heat') || nicheLower.includes('cool')) templateKey = 'hvac';
+    else if (nicheLower.includes('restaur') || nicheLower.includes('din')) templateKey = 'restaurant';
+    else if (nicheLower.includes('estate') || nicheLower.includes('realt')) templateKey = 'realestate';
+    else if (nicheLower.includes('auto') || nicheLower.includes('repair') || nicheLower.includes('mechanic')) templateKey = 'autorepair';
+    else if (nicheLower.includes('gym') || nicheLower.includes('fit')) templateKey = 'gym';
+    else if (nicheLower.includes('chiro')) templateKey = 'chiropractic';
+    else if (nicheLower.includes('salon') || nicheLower.includes('spa') || nicheLower.includes('hair')) templateKey = 'salon';
+
+    const tpl = nicheTemplates[templateKey] || nicheTemplates['accounting'];
 
     return Array.from({ length: count }).map((_, i) => {
-      const prefix = prefixes[i % prefixes.length];
-      const name = `${prefix} ${niche.replace(/&/g, 'and')} of ${city}`;
-      const domain = `${prefix.toLowerCase()}${cleanNiche}${cleanCity}.com`;
-      const website = `https://${domain}`;
+      const idx = i % tpl.names.length;
+      const name = tpl.names[idx] || `${niche} of ${city} #${i + 1}`;
+      const domain = tpl.domains[idx] || 'www.example.com';
+      const website = domain.startsWith('http') ? domain : `https://${domain}`;
 
       return {
         id: `lead-client-${Date.now()}-${i}`,
         name,
         website,
-        phone: `(${Math.floor(200 + Math.random() * 700)}) ${Math.floor(200 + Math.random() * 800)}-${Math.floor(1000 + Math.random() * 9000)}`,
+        phone: tpl.phones[idx] || `(${Math.floor(200 + Math.random() * 700)}) ${Math.floor(200 + Math.random() * 800)}-${Math.floor(1000 + Math.random() * 9000)}`,
         address: `${100 + i * 24} Main Street, ${city}, ${state}`,
         city,
         state,
