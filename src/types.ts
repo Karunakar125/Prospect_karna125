@@ -53,6 +53,7 @@ export interface SearchForm {
   niche: string;
   city: string;
   state: string;
+  geoCategory?: string;
   customKey?: string;
   sampleMode: boolean;
   maxResults: number;

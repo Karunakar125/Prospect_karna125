@@ -232,43 +232,29 @@ app.post('/api/extract-contact', async (req: Request, res: Response) => {
     }
 
     const cleanBaseUrl = websiteUrl.replace(/\/$/, '');
-    const pathsToTry = [
-      '',
-      '/contact',
-      '/contact-us',
-      '/locations',
-      '/location',
-      '/team',
-      '/about',
-      '/about-us',
-    ];
+    const pathsToTry = ['', '/contact', '/about'];
 
     const emailsFound: Set<string> = new Set();
 
-    for (const path of pathsToTry) {
+    // Perform parallel fetches with an aggressive 1.5s timeout to keep pipeline lightning fast
+    const fetchPromises = pathsToTry.map(async (path) => {
       const targetUrl = `${cleanBaseUrl}${path}`;
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
-
         const response = await fetch(targetUrl, {
           headers: {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           },
-          signal: controller.signal,
+          signal: AbortSignal.timeout(1500),
         });
-        clearTimeout(timeoutId);
 
         if (response.status < 500) {
           const html = await response.text();
-          // Regex for email extraction
           const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
           const matches = html.match(emailRegex) || [];
 
           for (const rawEmail of matches) {
             const email = rawEmail.toLowerCase().trim();
-            // Junk filtering
             if (
               !email.includes('noreply') &&
               !email.includes('no-reply') &&
@@ -287,12 +273,11 @@ app.post('/api/extract-contact', async (req: Request, res: Response) => {
           }
         }
       } catch (err) {
-        // Continue loop even if one endpoint fails/times out
+        // Safe timeout or network error fallback
       }
+    });
 
-      // If we already found good emails, we can stop scraping further subpages
-      if (emailsFound.size >= 3) break;
-    }
+    await Promise.allSettled(fetchPromises);
 
     const emailList = Array.from(emailsFound);
 

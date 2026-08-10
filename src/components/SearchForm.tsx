@@ -32,10 +32,12 @@ export const SearchForm: React.FC<SearchFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const selectedNiche = NICHES_LIST.find((n) => n.label === niche);
     onSearch({
       niche,
       city,
       state,
+      geoCategory: selectedNiche?.geoCategory,
       maxResults,
       sampleMode,
       customKey: customKey.trim() ? customKey.trim() : undefined,
