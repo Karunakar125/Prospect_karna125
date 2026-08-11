@@ -103,7 +103,7 @@ apiRouter.post('/scrape-leads', async (req: Request, res: Response) => {
       lon = geoData.results[0].lon;
     }
 
-    const category = geoCategory || 'office.lawyer,office,service';
+    const category = geoCategory || 'office';
     let placesUrl = '';
 
     if (lat && lon) {
@@ -128,11 +128,18 @@ apiRouter.post('/scrape-leads', async (req: Request, res: Response) => {
     let placesRes = await fetch(placesUrl);
     let placesData = await placesRes.json();
 
-    // Fallback search attempt if primary query returns zero features
+    // Fallback search attempt 1: If primary query returns zero features, search by placeId
     if ((!placesData.features || placesData.features.length === 0) && placeId) {
       const fallbackUrl = `https://api.geoapify.com/v2/places?categories=${encodeURIComponent(
         category
       )}&filter=place:${placeId}&limit=${maxResults * 3}&apiKey=${apiKey}`;
+      placesRes = await fetch(fallbackUrl);
+      placesData = await placesRes.json();
+    }
+
+    // Fallback search attempt 2: If still zero features, search general service & office categories
+    if ((!placesData.features || placesData.features.length === 0) && lat && lon) {
+      const fallbackUrl = `https://api.geoapify.com/v2/places?categories=service,office,commercial,catering,healthcare&filter=circle:${lon},${lat},25000&limit=${maxResults * 3}&apiKey=${apiKey}`;
       placesRes = await fetch(fallbackUrl);
       placesData = await placesRes.json();
     }

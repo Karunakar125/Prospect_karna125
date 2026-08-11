@@ -17,6 +17,7 @@ import { ProgressBar } from './components/ProgressBar';
 import { StatsOverview } from './components/StatsOverview';
 import { LeadCard } from './components/LeadCard';
 import { Lead, SearchForm as SearchFormType } from './types';
+import { fetchLiveGeoapifyLeads } from './utils/geoapifyClient';
 
 export default function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -335,33 +336,51 @@ export default function App() {
 
     try {
       let initialLeads: Lead[] = [];
+      const customKeyToSend = form.customKey || (import.meta.env.VITE_GEOAPIFY_API_KEY as string) || undefined;
 
-      try {
-        const customKeyToSend = form.customKey || (import.meta.env.VITE_GEOAPIFY_API_KEY as string) || undefined;
-        // Step 1: Fetch Scraped Leads
-        const scrapeRes = await fetch('/api/scrape-leads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            niche: form.niche,
-            city: form.city,
-            state: form.state,
-            geoCategory: form.geoCategory,
-            customKey: customKeyToSend,
-            sampleMode: form.sampleMode,
-            maxResults: form.maxResults,
-          }),
-        });
-
-        if (scrapeRes.ok) {
-          const scrapeData = await scrapeRes.json();
-          initialLeads = scrapeData.leads || [];
+      // 1A. Attempt direct live Geoapify search if key is available and not in sample mode
+      if (!form.sampleMode && customKeyToSend) {
+        try {
+          initialLeads = await fetchLiveGeoapifyLeads(
+            form.niche,
+            form.city,
+            form.state,
+            form.geoCategory || 'office',
+            customKeyToSend,
+            form.maxResults || 6
+          );
+        } catch (clientGeoErr) {
+          console.warn('Direct client Geoapify fetch error, trying backend endpoint:', clientGeoErr);
         }
-      } catch (scrapeErr) {
-        console.warn('Scrape API network error, proceeding with sample mode fallback:', scrapeErr);
       }
 
-      // If backend scraping returned 0 leads or network issue occurred, fallback to sample leads
+      // 1B. If direct fetch yielded 0 leads, invoke backend scrape endpoint
+      if (initialLeads.length === 0) {
+        try {
+          const scrapeRes = await fetch('/api/scrape-leads', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              niche: form.niche,
+              city: form.city,
+              state: form.state,
+              geoCategory: form.geoCategory,
+              customKey: customKeyToSend,
+              sampleMode: form.sampleMode,
+              maxResults: form.maxResults,
+            }),
+          });
+
+          if (scrapeRes.ok) {
+            const scrapeData = await scrapeRes.json();
+            initialLeads = scrapeData.leads || [];
+          }
+        } catch (scrapeErr) {
+          console.warn('Scrape API network error, proceeding with sample mode fallback:', scrapeErr);
+        }
+      }
+
+      // 1C. Fallback to sample leads if no live results returned
       if (initialLeads.length === 0) {
         initialLeads = generateClientLeads(form.niche, form.city, form.state, form.maxResults || 6);
       }
@@ -377,7 +396,7 @@ export default function App() {
         // 2A: Extract Contact Emails
         setPipelineStep('extracting');
         setPipelineProgress(20 + Math.round((i / total) * 70) + 5);
-        setStatusMessage(`[${i + 1}/${total}] Extracting emails from ${lead.website}...`);
+        setStatusMessage(`[${i + 1}/${total}] Extracting emails for ${lead.name}...`);
 
         let foundEmail: string | undefined = undefined;
         try {
@@ -386,10 +405,22 @@ export default function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ websiteUrl: lead.website }),
           });
-          const emailData = await emailRes.json();
-          foundEmail = emailData.foundEmail;
+          if (emailRes.ok) {
+            const emailData = await emailRes.json();
+            foundEmail = emailData.foundEmail;
+          }
         } catch (err) {
-          console.warn('Email extraction error:', err);
+          console.warn('Email extraction network issue:', err);
+        }
+
+        // Guaranteed Contact Fallback: If no email was found, construct a direct domain email
+        if (!foundEmail && lead.website) {
+          try {
+            const domainHost = new URL(lead.website).hostname.replace(/^www\./, '');
+            foundEmail = `contact@${domainHost}`;
+          } catch (e) {
+            foundEmail = undefined;
+          }
         }
 
         // Update lead with email
