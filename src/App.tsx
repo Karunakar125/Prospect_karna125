@@ -18,6 +18,7 @@ import { StatsOverview } from './components/StatsOverview';
 import { LeadCard } from './components/LeadCard';
 import { Lead, SearchForm as SearchFormType } from './types';
 import { fetchLiveGeoapifyLeads } from './utils/geoapifyClient';
+import { fetchAuditAndDraftWithFallback } from './utils/aiAuditGenerator';
 
 export default function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -443,29 +444,23 @@ export default function App() {
         setStatusMessage(`[${i + 1}/${total}] Gemini Vision analyzing ${lead.name} website screenshot...`);
 
         try {
-          const auditRes = await fetch('/api/audit-and-draft', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              leadName: lead.name,
-              websiteUrl: lead.website,
-              niche: lead.niche,
-              city: lead.city,
-              state: lead.state,
-              foundEmail,
-            }),
-          });
-
-          const auditData = await auditRes.json();
+          const auditResult = await fetchAuditAndDraftWithFallback(
+            lead.name,
+            lead.niche,
+            lead.city,
+            lead.state,
+            lead.website,
+            foundEmail
+          );
 
           setLeads((prev) =>
             prev.map((l, idx) =>
               idx === i
                 ? {
                     ...l,
-                    auditScore: auditData.auditDetail?.score || 55,
-                    auditDetail: auditData.auditDetail,
-                    emailDraft: auditData.emailDraft,
+                    auditScore: auditResult.auditDetail?.score || 55,
+                    auditDetail: auditResult.auditDetail,
+                    emailDraft: auditResult.emailDraft,
                     status: 'ready',
                   }
                 : l
@@ -511,19 +506,14 @@ export default function App() {
     if (!targetLead) return;
 
     try {
-      const res = await fetch('/api/audit-and-draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leadName: targetLead.name,
-          websiteUrl: targetLead.website,
-          niche: targetLead.niche,
-          city: targetLead.city,
-          state: targetLead.state,
-          foundEmail: targetLead.manualEmail || targetLead.foundEmail,
-        }),
-      });
-      const data = await res.json();
+      const data = await fetchAuditAndDraftWithFallback(
+        targetLead.name,
+        targetLead.niche,
+        targetLead.city,
+        targetLead.state,
+        targetLead.website,
+        targetLead.manualEmail || targetLead.foundEmail
+      );
       setLeads((prev) =>
         prev.map((l) =>
           l.id === leadId
